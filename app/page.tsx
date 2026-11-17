@@ -84,6 +84,7 @@ function ChatApp() {
   };
 
   const connectToRoom = (id: string, side: 'A' | 'B') => {
+    addMessage(`Connecting to room [${id}] as User ${side}...`);
     
     // تولید کلیدهای جدید فقط برای همین اتصال
     keyPairRef.current = nacl.box.keyPair();
@@ -97,6 +98,7 @@ function ChatApp() {
 
     socket.on('connect', () => {
       setStatus('CONNECTED');
+      addMessage('Connection established. Joining room...');
       socket.emit('join-room', { roomId: id, side });
     });
 
@@ -111,6 +113,7 @@ function ChatApp() {
     });
 
     socket.on('joined', () => {
+      addMessage('Joined. Exchanging public keys...');
       socket.emit('exchange-public-key', {
         roomId: id,
         side,
@@ -121,6 +124,7 @@ function ChatApp() {
     socket.on('peer-public-key', (data: { publicKey: string }) => {
       const peerPublicKey = util.decodeBase64(data.publicKey);
       sharedKeyRef.current = nacl.box.before(peerPublicKey, keyPairRef.current!.secretKey);
+      addMessage('✅ SECURE CHANNEL ESTABLISHED. E2E ENCRYPTION ACTIVE.');
       setTimeout(() => inputRef.current?.focus(), 100);
     });
 
@@ -199,6 +203,25 @@ function ChatApp() {
             >
               {isLoading ? '[ CREATING... ]' : '[ CREATE NEW ROOM ]'}
             </button>
+            
+            <div className="flex flex-col md:flex-row gap-3 flex-1">
+              <input 
+                type="text" 
+                placeholder="Enter Room ID to Join" 
+                value={inputRoomId} 
+                onChange={(e) => setInputRoomId(e.target.value)}
+                disabled={isLoading}
+                className="bg-black text-[#00ff00] border border-[#00ff00] p-2 outline-none text-xs md:text-sm flex-1 disabled:opacity-50"
+              />
+              <button 
+                onClick={joinRoom} 
+                disabled={isLoading || !inputRoomId}
+                className={`border border-[#00ff00] p-2 bg-black transition-colors text-xs md:text-sm whitespace-nowrap
+                  ${isLoading || !inputRoomId ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#00ff00] hover:text-black'}`}
+              >
+                [ JOIN ROOM ]
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -207,7 +230,7 @@ function ChatApp() {
         <div className="flex-1 flex flex-col m-2 md:m-4 border border-[#00ff00] overflow-hidden relative">
           
           <div className="p-2 text-xs text-[#888] border-b border-[#00ff00] bg-black/50 shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-            <span>STATUS: {status}</span>
+            <span>ROOM_ID: {roomId} | STATUS: {status}</span>
             
             {/* نمایش لینک دعوت فقط برای کاربر A (سازنده اتاق) */}
             {mySide === 'A' && (
